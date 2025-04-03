@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, Prisma } from "@prisma/client";
 
 const prisma = new PrismaClient();
+//type UserSelectType = Prisma.UserSelect;
 
 export async function POST(req: Request) {
     try {

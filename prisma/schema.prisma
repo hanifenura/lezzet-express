@@ -20,7 +20,7 @@ model User {
   password    String
   phoneNumber String
   address     String
-  role        String
+  role        String // admin,customer,restaurant_owner
   createdAt   DateTime @default(now())
   orders      Order[] // Kullanıcının siparişleri
 }
@@ -35,6 +35,7 @@ model Restaurant {
   location    GeoPoint
   categories  String[]
   rating      Float
+  image       String? // Restoran fotoğrafı (Opsiyonel)
   menu        Menu[] // Restoranın menüsü
   createdAt   DateTime @default(now())
 }
@@ -45,7 +46,7 @@ model Menu {
   name         String
   description  String
   price        Float
-  image        String
+  image        String? // Ürün fotoğrafı (Opsiyonel)
   category     String
   available    Boolean
   restaurant   Restaurant @relation(fields: [restaurantId], references: [id]) // Menüde restoran referansı
@@ -55,7 +56,7 @@ model Order {
   id              String   @id @default(auto()) @map("_id") @db.ObjectId
   userId          String   @db.ObjectId
   restaurantId    String   @db.ObjectId
-  items           Item[] // Siparişin öğeleri (Item)
+  items           Item[]
   totalPrice      Float
   status          String
   paymentMethod   String

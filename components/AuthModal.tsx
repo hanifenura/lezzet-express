@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 type AuthModalProps = {
     isOpen: boolean;
@@ -7,6 +7,24 @@ type AuthModalProps = {
 
 const AuthModal = ({ isOpen, onClose, isLogin }: AuthModalProps & { isLogin: boolean }) => {
     const [isLoginState, setIsLogin] = useState(isLogin);
+    const [isClient, setIsClient] = useState(false);
+
+    // useEffect ile yalnızca istemci tarafında çalışmasını sağlıyoruz
+    useEffect(() => {
+        setIsClient(true);
+
+        // ReCAPTCHA script'ini sayfaya ekliyoruz
+        const script = document.createElement("script");
+        script.src = "https://www.google.com/recaptcha/api.js";
+        script.async = true;
+        script.defer = true;
+        document.head.appendChild(script);
+
+        return () => {
+            // Component unmount olduğunda script'i kaldırıyoruz
+            document.head.removeChild(script);
+        };
+    }, []);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -14,6 +32,11 @@ const AuthModal = ({ isOpen, onClose, isLogin }: AuthModalProps & { isLogin: boo
             console.log("Login işlemi yapılacak");
         } else {
             console.log("Register işlemi yapılacak");
+        }
+
+        // Yalnızca istemci tarafında yönlendirme işlemi yapıyoruz
+        if (isClient) {
+            window.location.href = "/konum"; // Yeni sayfaya yönlendir
         }
     };
 
@@ -97,8 +120,6 @@ const AuthModal = ({ isOpen, onClose, isLogin }: AuthModalProps & { isLogin: boo
                                 required
                             />
                         </div>
-
-
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">E-posta</label>
                             <input
