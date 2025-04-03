@@ -1,0 +1,97 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  email       String   @unique
+  password    String
+  phoneNumber String
+  address     String
+  role        String
+  createdAt   DateTime @default(now())
+  orders      Order[] // Kullanıcının siparişleri
+}
+
+model Restaurant {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  ownerId     String   @db.ObjectId
+  name        String
+  description String
+  address     String
+  phone       String
+  location    GeoPoint
+  categories  String[]
+  rating      Float
+  menu        Menu[] // Restoranın menüsü
+  createdAt   DateTime @default(now())
+}
+
+model Menu {
+  id           String     @id @default(auto()) @map("_id") @db.ObjectId
+  restaurantId String     @db.ObjectId
+  name         String
+  description  String
+  price        Float
+  image        String
+  category     String
+  available    Boolean
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id]) // Menüde restoran referansı
+}
+
+model Order {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String   @db.ObjectId
+  restaurantId    String   @db.ObjectId
+  items           Item[] // Siparişin öğeleri (Item)
+  totalPrice      Float
+  status          String
+  paymentMethod   String
+  deliveryAddress String
+  orderedAt       DateTime @default(now())
+  user            User     @relation(fields: [userId], references: [id]) // Kullanıcıya referans
+}
+
+model Item {
+  id       String @id @default(auto()) @map("_id") @db.ObjectId
+  orderId  String @db.ObjectId // Order ile ilişki
+  menuId   String @db.ObjectId
+  quantity Int
+  price    Float
+  order    Order  @relation(fields: [orderId], references: [id]) // Siparişle ilişki
+}
+
+model Review {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId       String   @db.ObjectId
+  restaurantId String   @db.ObjectId
+  rating       Int
+  comment      String
+  createdAt    DateTime @default(now())
+}
+
+model Delivery {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  orderId   String   @db.ObjectId
+  courierId String   @db.ObjectId
+  status    String
+  location  GeoPoint
+  updatedAt DateTime @default(now())
+}
+
+type GeoPoint {
+  lat Float
+  lng Float
+}
