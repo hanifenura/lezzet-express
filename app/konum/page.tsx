@@ -19,11 +19,11 @@ export default function KonumPage() {
             "Karaman", "Kastamonu", "Kayseri", "Kilis", "Kocaeli", "Konya", "Kütahya", "Malatya", "Manisa", "Mardin",
             "Mersin", "Muğla", "Muş", "Nevşehir", "Niğde", "Ordu", "Osmaniye", "Rize", "Sakarya", "Samsun", "Şanlıurfa",
             "Siirt", "Sinop", "Sivas", "Şırnak", "Tekirdağ", "Tokat", "Trabzon", "Tunceli", "Uşak", "Van", "Yalova",
-            "Yozgat", "Zonguldak"]); // Dinamik veri eklenebilir
+            "Yozgat", "Zonguldak"]);
     }, []);
 
     const handleConfirm = () => {
-        if (!address || !city || !coordinates) {
+        if (!address || !city) {
             alert('Lütfen adres, şehir ve harita bilgilerini doldurun.');
             return;
         }
@@ -86,13 +86,21 @@ export default function KonumPage() {
                         </div>
                     </div>
 
-                    {/* Harita Alanı (Harita API'si Entegre Edilebilir) */}
+                    {/* Harita Alanı (Harita API'si Entegre Edilebilir)
                     <div
-                        className="w-full h-[300px] mb-4 rounded-lg border border-gray-300 flex items-center justify-center"
+                        className="w-full h-[300px] mb-4 rounded-lg border border-gray-300 flex items-center justify-center overflow-hidden"
                         onClick={() => handleMapClick(41.0082, 28.9784)} // Örnek: İstanbul'un koordinatları
                     >
-                        <span className="text-gray-500">Harita burada olacak</span>
-                    </div>
+                        <iframe
+                            src="https://storage.googleapis.com/maps-solutions-l6jxf9cpsf/locator-plus/agb4/locator-plus.html"
+                            width="100%"
+                            height="100%"
+                            style={{ border: 0 }}
+                            loading="lazy"
+                            title="Google Maps"
+                        ></iframe>
+                    </div> */}
+
 
                     {/* Buton */}
                     <div className="flex justify-end">

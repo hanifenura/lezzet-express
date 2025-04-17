@@ -5,7 +5,8 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-arm64-openssl-1.0.x"]
 }
 
 datasource db {
@@ -15,23 +16,29 @@ datasource db {
 
 model User {
   id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  name        String
+  name        String?
   email       String   @unique
-  password    String
-  phoneNumber String
-  address     String
-  role        String // admin,customer,restaurant_owner
+  password    String?
+  phoneNumber String   @default("")
+  address     String?
+  role        Role? // admin, customer, restaurant_owner
   createdAt   DateTime @default(now())
   orders      Order[] // Kullanıcının siparişleri
+}
+
+enum Role {
+  admin
+  customer
+  restaurant_owner
 }
 
 model Restaurant {
   id          String   @id @default(auto()) @map("_id") @db.ObjectId
   ownerId     String   @db.ObjectId
   name        String
-  description String
-  address     String
-  phone       String
+  description String?
+  address     String?
+  phone       String?
   location    GeoPoint
   categories  String[]
   rating      Float
@@ -44,7 +51,7 @@ model Menu {
   id           String     @id @default(auto()) @map("_id") @db.ObjectId
   restaurantId String     @db.ObjectId
   name         String
-  description  String
+  description  String?
   price        Float
   image        String? // Ürün fotoğrafı (Opsiyonel)
   category     String
@@ -58,9 +65,9 @@ model Order {
   restaurantId    String   @db.ObjectId
   items           Item[]
   totalPrice      Float
-  status          String
-  paymentMethod   String
-  deliveryAddress String
+  status          String?
+  paymentMethod   String?
+  deliveryAddress String?
   orderedAt       DateTime @default(now())
   user            User     @relation(fields: [userId], references: [id]) // Kullanıcıya referans
 }
@@ -87,7 +94,7 @@ model Delivery {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
   orderId   String   @db.ObjectId
   courierId String   @db.ObjectId
-  status    String
+  status    String?
   location  GeoPoint
   updatedAt DateTime @default(now())
 }

@@ -22,7 +22,7 @@ export default function Home() {
                 </p>
               </div>
               <div className="flex justify-center">
-                <Link href="#" className="bg-[#7F0005] text-white px-8 py-3 rounded-lg text-xl hover:bg-[#940008]">
+                <Link href="/konum" className="bg-[#7F0005] text-white px-8 py-3 rounded-lg text-xl hover:bg-[#940008]">
                   Sipariş Ver
                 </Link>
               </div>
