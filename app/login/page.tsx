@@ -28,25 +28,24 @@ export default function Login() {
             });
 
             if (result?.error) {
-                setError('Geçersiz email veya şifre');
+                setError(result.error);
                 return;
             }
 
-            // Kullanıcı rolüne göre yönlendirme
-            const response = await fetch('/api/auth/session');
-            const session = await response.json();
+            if (result?.ok) {
+                const response = await fetch('/api/auth/session');
+                const session = await response.json();
 
-            if (session?.user?.role === 'customer') {
-                router.push('/konum');
-            } else if (session?.user?.role === 'restaurant_owner') {
-                router.push('/restaurant_owner');
-            } else if (session?.user?.role === 'admin') {
-                router.push('/admin');
-            } else {
-                router.push('/');
+                if (session?.user?.role === 'customer') {
+                    router.push('/konum');
+                } else if (session?.user?.role === 'restaurant_owner') {
+                    router.push('/restaurant_owner');
+                } else if (session?.user?.role === 'admin') {
+                    router.push('/admin');
+                } else {
+                    router.push('/');
+                }
             }
-
-            router.refresh();
         } catch (error) {
             console.error('Giriş hatası:', error);
             setError('Bir hata oluştu. Lütfen tekrar deneyin.');
@@ -65,6 +64,11 @@ export default function Login() {
                             Hesabınıza giriş yapın
                         </h2>
                     </div>
+                    {error && (
+                        <div className="mb-4 p-3 bg-red-100 text-red-700 rounded">
+                            {error}
+                        </div>
+                    )}
                     <form className="space-y-4" onSubmit={handleSubmit}>
                         <div className="rounded-md shadow-sm -space-y-px">
                             <div>
@@ -81,11 +85,7 @@ export default function Login() {
                                     placeholder="lezzetexpress@gmail.com"
                                 />
                             </div>
-                            <br>
-
-                            </br>
-
-                            <div>
+                            <div className="mt-4">
                                 <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
                                     Şifre
                                 </label>
@@ -96,31 +96,16 @@ export default function Login() {
                                     autoComplete="current-password"
                                     required
                                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7F0005] focus:border-[#7F0005] outline-none transition-all"
-                                    placeholder="********"
+                                    placeholder="Şifreniz"
                                 />
                             </div>
-                        </div>
-
-                        {error && (
-                            <div className="text-red-500 text-sm text-center">{error}</div>
-
-                        )}
-
-                        <div className="flex items-center justify-between">
-                            <label className="flex items-center">
-                                <input
-                                    type="checkbox"
-                                    className="w-4 h-4 text-[#7F0005] border-gray-300 rounded focus:ring-[#7F0005]"
-                                />
-                                <span className="ml-2 text-sm text-gray-600">Beni hatırla</span>
-                            </label>
                         </div>
 
                         <div>
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="w-full py-3 bg-[#7F0005] text-white rounded-lg hover:bg-opacity-90 transition-all"
+                                className="w-full bg-[#7F0005] text-white py-2 px-4 rounded-lg hover:bg-[#940008] transition duration-300 disabled:opacity-50"
                             >
                                 {loading ? 'Giriş yapılıyor...' : 'Giriş Yap'}
                             </button>
