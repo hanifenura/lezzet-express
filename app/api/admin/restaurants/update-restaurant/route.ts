@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { PrismaClient } from '@prisma/client';
 
-export async function GET() {
+export async function POST(request: Request) {
     try {
         const session = await getServerSession(authOptions);
 
@@ -11,22 +11,23 @@ export async function GET() {
             return new NextResponse('Unauthorized', { status: 401 });
         }
 
+        const body = await request.json();
+        const { id, name, description, phone } = body;
         const prisma = new PrismaClient();
-        const users = await prisma.user.findMany({
-            select: {
-                id: true,
-                name: true,
-                email: true,
-                role: true,
+        const restaurant = await prisma.restaurant.update({
+            where: {
+                id: id,
             },
-            orderBy: {
-                name: 'asc'
-            }
+            data: {
+                name,
+                description,
+                phone,
+            },
         });
 
-        return NextResponse.json(users);
+        return NextResponse.json(restaurant);
     } catch (error) {
-        console.error('Kullanıcılar yüklenirken hata:', error);
+        console.error('Restoran güncellenirken hata:', error);
         return new NextResponse('Internal Server Error', { status: 500 });
     }
 } 
