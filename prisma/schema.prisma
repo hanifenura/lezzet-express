@@ -24,6 +24,7 @@ model User {
   role        Role? // admin, customer, restaurant_owner
   createdAt   DateTime @default(now())
   orders      Order[] // Kullanıcının siparişleri
+  Review      Review[]
 }
 
 enum Role {
@@ -88,6 +89,7 @@ model Review {
   rating       Int
   comment      String
   createdAt    DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id])
 }
 
 model Delivery {
