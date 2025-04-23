@@ -20,6 +20,15 @@ interface Restaurant {
     phone: string;
     rating: number;
     image?: string;
+    reviews?: {
+        id: string;
+        rating: number;
+        comment: string;
+        createdAt: string;
+        user: {
+            name: string;
+        };
+    }[];
 }
 
 interface Order {
