@@ -26,7 +26,11 @@ export async function GET() {
             },
             include: {
                 user: true,
-                items: true
+                items: {
+                    include: {
+                        menu: true
+                    }
+                }
             },
             orderBy: {
                 orderedAt: 'desc'
@@ -73,6 +77,47 @@ export async function PATCH(request: Request) {
         return NextResponse.json(order);
     } catch (error) {
         console.error('Sipariş güncellenirken hata:', error);
+        return NextResponse.json({ error: 'Sunucu hatası' }, { status: 500 });
+    }
+}
+
+export async function DELETE(request: Request) {
+    try {
+        const session = await getServerSession(authOptions);
+
+        if (!session || session.user.role !== 'restaurant_owner') {
+            return NextResponse.json({ error: 'Yetkisiz erişim' }, { status: 401 });
+        }
+
+        const { searchParams } = new URL(request.url);
+        const orderId = searchParams.get('id');
+
+        if (!orderId) {
+            return NextResponse.json({ error: 'Sipariş ID\'si gerekli' }, { status: 400 });
+        }
+
+        const order = await prisma.order.update({
+            where: {
+                id: orderId,
+                restaurantId: {
+                    in: (await prisma.restaurant.findMany({
+                        where: {
+                            ownerId: session.user.id
+                        },
+                        select: {
+                            id: true
+                        }
+                    })).map(restaurant => restaurant.id)
+                }
+            },
+            data: {
+                status: 'CANCELLED'
+            }
+        });
+
+        return NextResponse.json(order);
+    } catch (error) {
+        console.error('Sipariş iptal edilirken hata:', error);
         return NextResponse.json({ error: 'Sunucu hatası' }, { status: 500 });
     }
 } 
