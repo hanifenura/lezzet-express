@@ -25,7 +25,8 @@ export async function GET() {
                 }
             },
             include: {
-                user: true
+                user: true,
+                restaurant: true
             },
             orderBy: {
                 createdAt: 'desc'

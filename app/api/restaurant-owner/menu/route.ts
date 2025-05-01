@@ -56,4 +56,69 @@ export async function POST(request: Request) {
         console.error('Menü öğesi eklenirken hata:', error);
         return NextResponse.json({ error: 'Sunucu hatası' }, { status: 500 });
     }
+}
+
+export async function PUT(request: Request) {
+    try {
+        const session = await getServerSession(authOptions);
+
+        if (!session || session.user.role !== 'restaurant_owner') {
+            return NextResponse.json({ error: 'Yetkisiz erişim' }, { status: 401 });
+        }
+
+        const body = await request.json();
+        const { id, name, description, price, category, available } = body;
+
+        const menuItem = await prisma.menu.update({
+            where: {
+                id,
+                restaurant: {
+                    ownerId: session.user.id
+                }
+            },
+            data: {
+                name,
+                description,
+                price,
+                category,
+                available
+            }
+        });
+
+        return NextResponse.json(menuItem);
+    } catch (error) {
+        console.error('Menü öğesi güncellenirken hata:', error);
+        return NextResponse.json({ error: 'Sunucu hatası' }, { status: 500 });
+    }
+}
+
+export async function DELETE(request: Request) {
+    try {
+        const session = await getServerSession(authOptions);
+
+        if (!session || session.user.role !== 'restaurant_owner') {
+            return NextResponse.json({ error: 'Yetkisiz erişim' }, { status: 401 });
+        }
+
+        const { searchParams } = new URL(request.url);
+        const menuId = searchParams.get('id');
+
+        if (!menuId) {
+            return NextResponse.json({ error: 'Menü ID\'si gerekli' }, { status: 400 });
+        }
+
+        const menuItem = await prisma.menu.delete({
+            where: {
+                id: menuId,
+                restaurant: {
+                    ownerId: session.user.id
+                }
+            }
+        });
+
+        return NextResponse.json(menuItem);
+    } catch (error) {
+        console.error('Menü öğesi silinirken hata:', error);
+        return NextResponse.json({ error: 'Sunucu hatası' }, { status: 500 });
+    }
 } 

@@ -46,6 +46,7 @@ model Restaurant {
   image       String? // Restoran fotoğrafı (Opsiyonel)
   menu        Menu[] // Restoranın menüsü
   createdAt   DateTime @default(now())
+  Review      Review[]
 }
 
 model Menu {
@@ -58,6 +59,7 @@ model Menu {
   category     String
   available    Boolean
   restaurant   Restaurant @relation(fields: [restaurantId], references: [id]) // Menüde restoran referansı
+  Item         Item[]
 }
 
 model Order {
@@ -80,16 +82,18 @@ model Item {
   quantity Int
   price    Float
   order    Order  @relation(fields: [orderId], references: [id]) // Siparişle ilişki
+  menu     Menu   @relation(fields: [menuId], references: [id]) // Menü ile ilişki
 }
 
 model Review {
-  id           String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId       String   @db.ObjectId
-  restaurantId String   @db.ObjectId
+  id           String     @id @default(auto()) @map("_id") @db.ObjectId
+  userId       String     @db.ObjectId
+  restaurantId String     @db.ObjectId
   rating       Int
   comment      String
-  createdAt    DateTime @default(now())
-  user         User     @relation(fields: [userId], references: [id])
+  createdAt    DateTime   @default(now())
+  user         User       @relation(fields: [userId], references: [id])
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
 }
 
 model Delivery {
