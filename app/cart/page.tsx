@@ -6,7 +6,7 @@ import Header2 from '@/components/Header2';
 import Footer from '@/components/Footer';
 
 export default function CartPage() {
-    const { items, removeFromCart, updateQuantity, total } = useCart();
+    const { items, removeFromCart, updateQuantity, total, restaurantId } = useCart();
     const router = useRouter();
 
     if (items.length === 0) {
@@ -16,16 +16,24 @@ export default function CartPage() {
                 <main className="container mx-auto px-4 py-8">
                     <h1 className="text-2xl font-bold mb-4">Sepetiniz Boş</h1>
                     <button
-                        onClick={() => router.push('/')}
+                        onClick={() => router.push('/restaurants')}
                         className="px-4 py-2 bg-[#7F0005] text-white rounded-lg hover:bg-opacity-90 transition-colors"
                     >
-                        Alışverişe Başla
+                        Restoranları Keşfet
                     </button>
                 </main>
                 <Footer />
             </>
         );
     }
+
+    const handleCheckout = () => {
+        if (!restaurantId) {
+            alert('Sepetinizde ürün bulunmamaktadır.');
+            return;
+        }
+        router.push(`/checkout?restaurantId=${restaurantId}`);
+    };
 
     return (
         <>
@@ -38,19 +46,20 @@ export default function CartPage() {
                             <div>
                                 <h3 className="font-bold">{item.name}</h3>
                                 <p className="text-gray-600">{item.price.toFixed(2)} ₺</p>
+                                <p className="text-sm text-gray-500">{item.restaurantName}</p>
                             </div>
                             <div className="flex items-center space-x-4">
                                 <div className="flex items-center space-x-2">
                                     <button
                                         onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))}
-                                        className="px-2 py-1 bg-gray-200 rounded"
+                                        className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 transition-colors"
                                     >
                                         -
                                     </button>
                                     <span>{item.quantity}</span>
                                     <button
                                         onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                                        className="px-2 py-1 bg-gray-200 rounded"
+                                        className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 transition-colors"
                                     >
                                         +
                                     </button>
@@ -71,7 +80,7 @@ export default function CartPage() {
                         <span className="font-bold text-xl">{total.toFixed(2)} ₺</span>
                     </div>
                     <button
-                        onClick={() => alert('Ödeme işlemi başlatılıyor...')}
+                        onClick={handleCheckout}
                         className="w-full px-4 py-2 bg-[#7F0005] text-white rounded-lg hover:bg-opacity-90 transition-colors"
                     >
                         Ödeme Yap
