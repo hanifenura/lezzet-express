@@ -2,11 +2,28 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
+import { useSession, signOut } from 'next-auth/react';
 import { useCart } from '@/app/context/CartContext';
+import { ShoppingCart, Settings, Package, LogOut } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 
-const Header2 = () => {
+export default function Header2() {
+    const { data: session } = useSession();
     const { items } = useCart();
     const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsDropdownOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     return (
         <nav className="bg-[#fdfcfc] py-6 shadow-lg sticky top-0 z-40 w-full">
@@ -34,7 +51,7 @@ const Header2 = () => {
                         </div>
                     </div>
 
-                    {/* Sağ Taraf İkonları */}
+                    {/* Sağ Taraf */}
                     <div className="flex items-center space-x-6 px-8">
                         {/* Sepet */}
                         <Link href="/cart" className="relative group">
@@ -47,14 +64,52 @@ const Header2 = () => {
                         </Link>
 
                         {/* Profil */}
-                        <button className="group">
-                            <Image src="/people.png" alt="Profil" width={32} height={32} className="w-4 md:w-6 lg:w-8 h-auto" />
-                        </button>
+                        {session ? (
+                            <div className="relative" ref={dropdownRef}>
+                                <button
+                                    onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                                    className="flex items-center space-x-2 text-gray-700 hover:text-[#7F0005] transition-colors"
+                                >
+                                    <Image src="/people.png" alt="Profil" width={32} height={32} className="w-4 md:w-6 lg:w-8 h-auto" />
+                                    <span className="hidden md:inline">{session.user?.name}</span>
+                                </button>
+
+                                {isDropdownOpen && (
+                                    <div className="absolute left-0 mt-2 w-72 bg-white rounded-md shadow-lg py-1 z-50">
+                                        <Link
+                                            href="/profile"
+                                            className="flex items-center px-5 py-3 text-base text-gray-700 hover:bg-gray-100"
+                                            onClick={() => setIsDropdownOpen(false)}
+                                        >
+                                            <Settings className="h-4 w-4 mr-2" />
+                                            Profil Bilgilerim
+                                        </Link>
+                                        <Link
+                                            href="/orders"
+                                            className="flex items-center px-5 py-3 text-base text-gray-700 hover:bg-gray-100"
+                                            onClick={() => setIsDropdownOpen(false)}
+                                        >
+                                            <Package className="h-4 w-4 mr-2" />
+                                            Siparişlerim
+                                        </Link>
+                                        <button
+                                            onClick={() => signOut()}
+                                            className="flex items-center w-full px-5 py-3 text-base text-[#7F0005] hover:bg-gray-100"
+                                        >
+                                            <LogOut className="h-4 w-4 mr-2" />
+                                            Çıkış Yap
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <Link href="/login" className="text-gray-700 hover:text-[#7F0005] transition-colors">
+                                Giriş Yap
+                            </Link>
+                        )}
                     </div>
                 </div>
             </div>
         </nav>
     );
-};
-
-export default Header2;
+}

@@ -6,7 +6,6 @@ import Categories from "../../../components/restaurant-detail/Categories";
 import MenuItem from "../../../components/restaurant-detail/MenuItem";
 import Header2 from "@/components/Header2";
 import Footer from "@/components/Footer";
-import { CartProvider } from "@/app/context/CartContext";
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 
@@ -39,11 +38,7 @@ export default function RestaurantDetailPage() {
     if (loading) return <div>Loading...</div>;
     if (!restaurant) return notFound();
 
-    return (
-        <CartProvider>
-            <RestaurantDetailContent restaurant={restaurant} />
-        </CartProvider>
-    );
+    return <RestaurantDetailContent restaurant={restaurant} />;
 }
 
 function RestaurantDetailContent({ restaurant }: { restaurant: any }) {
@@ -76,7 +71,14 @@ function CategorySection({ restaurant }: { restaurant: any }) {
             />
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredMenu.map((item: any) => (
-                    <MenuItem key={item.id} item={item} />
+                    <MenuItem
+                        key={item.id}
+                        item={item}
+                        restaurant={{
+                            id: restaurant.id,
+                            name: restaurant.name
+                        }}
+                    />
                 ))}
             </div>
         </>
