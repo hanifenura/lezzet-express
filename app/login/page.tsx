@@ -37,7 +37,14 @@ export default function Login() {
                 const session = await response.json();
 
                 if (session?.user?.role === 'customer') {
-                    router.push('/konum');
+                    const userResponse = await fetch('/api/user/profile');
+                    const userData = await userResponse.json();
+
+                    if (userData.address && userData.address.trim() !== '') {
+                        router.push('/restaurants');
+                    } else {
+                        router.push('/konum');
+                    }
                 } else if (session?.user?.role === 'restaurant_owner') {
                     router.push('/restaurant_owner');
                 } else if (session?.user?.role === 'admin') {

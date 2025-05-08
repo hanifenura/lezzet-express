@@ -13,8 +13,11 @@ export default function RegisterPage() {
     email: '',
     password: '',
     phoneNumber: '',
+    name: '',
   });
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -25,22 +28,34 @@ export default function RegisterPage() {
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setIsSubmitting(true);
+    setError(null);
+    setSuccess(null);
 
-    const { email, password, phoneNumber } = formData;
+    const { email, password, phoneNumber, name } = formData;
 
-    const res = await fetch('/api/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, phoneNumber }),
-    });
+    try {
+      const res = await fetch('/api/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, phoneNumber, name }),
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (res.ok && data.success) {
-      const nextUrl = searchParams.get('next');
-      router.push(nextUrl ?? '/');
-    } else {
-      setError(data.message || 'Kullanıcı başarıyla oluşturuldu.');
+      if (res.ok && data.success) {
+        setSuccess('Kayıt başarıyla oluşturuldu! Giriş sayfasına yönlendiriliyorsunuz...');
+        setTimeout(() => {
+          const nextUrl = searchParams.get('next');
+          router.push(nextUrl ?? '/login');
+        }, 2000);
+      } else {
+        setError(data.error || 'Kayıt oluşturulurken bir hata oluştu.');
+      }
+    } catch (err) {
+      setError('Bir hata oluştu. Lütfen tekrar deneyin.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -56,6 +71,22 @@ export default function RegisterPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
+                Ad Soyad
+              </label>
+              <input
+                type="text"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                placeholder="Ad Soyad"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7F0005] focus:border-[#7F0005] outline-none transition-all"
+                required
+                disabled={isSubmitting}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Telefon Numarası
               </label>
               <input
@@ -66,6 +97,7 @@ export default function RegisterPage() {
                 placeholder="0(5--) --- -- --"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7F0005] focus:border-[#7F0005] outline-none transition-all"
                 required
+                disabled={isSubmitting}
               />
             </div>
 
@@ -81,6 +113,7 @@ export default function RegisterPage() {
                 placeholder="lezzetexpress@gmail.com"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7F0005] focus:border-[#7F0005] outline-none transition-all"
                 required
+                disabled={isSubmitting}
               />
             </div>
 
@@ -96,18 +129,19 @@ export default function RegisterPage() {
                 placeholder="********"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7F0005] focus:border-[#7F0005] outline-none transition-all"
                 required
+                disabled={isSubmitting}
               />
             </div>
 
             {error && <div className="text-red-500 text-sm">{error}</div>}
-
-
+            {success && <div className="text-green-500 text-sm font-medium">{success}</div>}
 
             <button
               type="submit"
-              className="w-full py-3 bg-[#7F0005] text-white rounded-lg hover:bg-opacity-90 transition-all"
+              className={`w-full py-3 bg-[#7F0005] text-white rounded-lg hover:bg-opacity-90 transition-all ${isSubmitting ? 'opacity-70 cursor-not-allowed' : ''}`}
+              disabled={isSubmitting}
             >
-              Kayıt Ol
+              {isSubmitting ? 'Kayıt Oluşturuluyor...' : 'Kayıt Ol'}
             </button>
           </form>
 

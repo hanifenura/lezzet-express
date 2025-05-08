@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import RestaurantHeader from "../../../components/restaurant-detail/RestaurantHeader";
 import Categories from "../../../components/restaurant-detail/Categories";
 import MenuItem from "../../../components/restaurant-detail/MenuItem";
+import Reviews from "../../../components/restaurant-detail/Reviews";
 import Header2 from "@/components/Header2";
 import Footer from "@/components/Footer";
 import { useState, useEffect } from "react";
@@ -48,6 +49,7 @@ function RestaurantDetailContent({ restaurant }: { restaurant: any }) {
             <main className="container mx-auto px-4 py-8">
                 <RestaurantHeader restaurant={restaurant} />
                 <CategorySection restaurant={restaurant} />
+                <Reviews restaurantId={restaurant.id} />
             </main>
             <Footer />
         </>

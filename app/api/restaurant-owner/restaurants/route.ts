@@ -65,6 +65,22 @@ export async function GET() {
                     orderBy: {
                         orderedAt: 'desc'
                     }
+                },
+                Review: {
+                    select: {
+                        id: true,
+                        rating: true,
+                        comment: true,
+                        createdAt: true,
+                        user: {
+                            select: {
+                                name: true
+                            }
+                        }
+                    },
+                    orderBy: {
+                        createdAt: 'desc'
+                    }
                 }
             }
         });
@@ -123,6 +139,22 @@ export async function GET() {
                                 orderBy: {
                                     orderedAt: 'desc'
                                 }
+                            },
+                            Review: {
+                                select: {
+                                    id: true,
+                                    rating: true,
+                                    comment: true,
+                                    createdAt: true,
+                                    user: {
+                                        select: {
+                                            name: true
+                                        }
+                                    }
+                                },
+                                orderBy: {
+                                    createdAt: 'desc'
+                                }
                             }
                         }
                     });
@@ -132,9 +164,15 @@ export async function GET() {
             })
         );
 
-        console.log('Bulunan restoran sayısı:', updatedRestaurants.length);
+        const formattedRestaurants = updatedRestaurants.map(restaurant => ({
+            ...restaurant,
+            reviews: restaurant.Review || [],
+            Review: undefined
+        }));
 
-        return NextResponse.json(updatedRestaurants);
+        console.log('Bulunan restoran sayısı:', formattedRestaurants.length);
+
+        return NextResponse.json(formattedRestaurants);
     } catch (error) {
         console.error('Restoranlar getirilirken detaylı hata:', {
             error: error instanceof Error ? error.message : 'Bilinmeyen hata',
