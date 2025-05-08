@@ -83,15 +83,15 @@ export default function OrdersPage() {
 
     const getStatusColor = (status: string) => {
         switch (status.toLowerCase()) {
-            case 'pending':
+            case 'beklemede':
                 return 'bg-yellow-100 text-yellow-800';
-            case 'preparing':
+            case 'hazirlaniyor':
                 return 'bg-blue-100 text-blue-800';
-            case 'on_the_way':
+            case 'yolda':
                 return 'bg-purple-100 text-purple-800';
-            case 'delivered':
+            case 'tamamlandi':
                 return 'bg-green-100 text-green-800';
-            case 'cancelled':
+            case 'iptal_edildi':
                 return 'bg-red-100 text-red-800';
             default:
                 return 'bg-gray-100 text-gray-800';
@@ -100,15 +100,15 @@ export default function OrdersPage() {
 
     const getStatusText = (status: string) => {
         switch (status.toLowerCase()) {
-            case 'pending':
+            case 'beklemede':
                 return 'Beklemede';
-            case 'preparing':
+            case 'hazirlaniyor':
                 return 'Hazırlanıyor';
-            case 'on_the_way':
+            case 'yolda':
                 return 'Yolda';
-            case 'delivered':
+            case 'tamamlandi':
                 return 'Teslim Edildi';
-            case 'cancelled':
+            case 'iptal_edildi':
                 return 'İptal Edildi';
             default:
                 return status;
@@ -208,7 +208,7 @@ export default function OrdersPage() {
                                         </div>
                                     </div>
 
-                                    {order.status.toLowerCase() === 'pending' && (
+                                    {order.status.toLowerCase() === 'beklemede' && (
                                         <button
                                             onClick={() => handleCancelOrder(order.id)}
                                             className="mt-4 w-full px-4 py-2 text-[#7F0005] border-2 border-[#7F0005] rounded-4xl hover:bg-[#7F0005] hover:text-white transition-colors duration-300"

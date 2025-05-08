@@ -273,6 +273,7 @@ export default function AdminDashboard() {
                                     <option value="customer">Müşteri</option>
                                     <option value="restaurant_owner">Restoran Sahibi</option>
                                     <option value="admin">Admin</option>
+                                    <option value="courier">Kurye</option>
                                 </select>
                             </td>
                             <td className="px-6 py-4 flex gap-2">

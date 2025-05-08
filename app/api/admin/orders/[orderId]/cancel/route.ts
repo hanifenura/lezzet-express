@@ -33,7 +33,7 @@ export async function POST(
                 id: orderId,
             },
             data: {
-                status: 'CANCELLED',
+                status: 'IPTAL_EDILDI',
             },
         });
 

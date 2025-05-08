@@ -53,31 +53,113 @@ export async function PATCH(request: Request) {
         }
 
         const body = await request.json();
-        const { orderId, status } = body;
+        const { orderId, courierId } = body;
 
-        const order = await prisma.order.update({
+        console.log('Gelen istek:', { orderId, courierId });
+
+        if (!orderId || !courierId) {
+            return NextResponse.json({ error: 'Sipariş ID ve Kurye ID gerekli' }, { status: 400 });
+        }
+
+        // Önce siparişin restoran sahibine ait olduğunu kontrol et
+        const order = await prisma.order.findFirst({
             where: {
                 id: orderId,
-                restaurantId: {
-                    in: (await prisma.restaurant.findMany({
-                        where: {
-                            ownerId: session.user.id
-                        },
-                        select: {
-                            id: true
-                        }
-                    })).map(restaurant => restaurant.id)
+                restaurant: {
+                    ownerId: session.user.id
                 }
             },
-            data: {
-                status
+            select: {
+                id: true,
+                status: true,
+                createdAt: true,
+                updatedAt: true
             }
         });
 
-        return NextResponse.json(order);
+        console.log('Bulunan sipariş:', order);
+
+        if (!order) {
+            return NextResponse.json({ error: 'Sipariş bulunamadı' }, { status: 404 });
+        }
+
+        if (order.status !== 'BEKLEMEDE') {
+            return NextResponse.json({ error: 'Sadece bekleyen siparişlere kurye atanabilir' }, { status: 400 });
+        }
+
+        // Kuryenin müsait olup olmadığını kontrol et
+        const courier = await prisma.courier.findFirst({
+            where: {
+                id: courierId,
+                status: 'MUSAIT'
+            },
+            select: {
+                id: true,
+                status: true,
+                createdAt: true,
+                updatedAt: true
+            }
+        });
+
+        console.log('Bulunan kurye:', courier);
+
+        if (!courier) {
+            return NextResponse.json({ error: 'Kurye müsait değil' }, { status: 400 });
+        }
+
+        try {
+            // Siparişi güncelle ve kuryeyi meşgul yap
+            const [updatedOrder, updatedCourier] = await prisma.$transaction([
+                prisma.order.update({
+                    where: { id: orderId },
+                    data: {
+                        courierId: courierId,
+                        status: 'YOLDA',
+                        updatedAt: new Date()
+                    },
+                    select: {
+                        id: true,
+                        status: true,
+                        courierId: true,
+                        createdAt: true,
+                        updatedAt: true
+                    }
+                }),
+                prisma.courier.update({
+                    where: { id: courierId },
+                    data: {
+                        status: 'MESGUL',
+                        updatedAt: new Date()
+                    },
+                    select: {
+                        id: true,
+                        status: true,
+                        createdAt: true,
+                        updatedAt: true
+                    }
+                })
+            ]);
+
+            console.log('Güncellenen sipariş ve kurye:', { updatedOrder, updatedCourier });
+
+            return NextResponse.json({
+                message: 'Kurye başarıyla atandı',
+                order: updatedOrder,
+                courier: updatedCourier
+            });
+        } catch (dbError) {
+            console.error('Veritabanı işlemi sırasında hata:', dbError);
+            return NextResponse.json({
+                error: 'Veritabanı işlemi sırasında hata oluştu',
+                details: dbError instanceof Error ? dbError.message : 'Bilinmeyen veritabanı hatası'
+            }, { status: 500 });
+        }
     } catch (error) {
         console.error('Sipariş güncellenirken hata:', error);
-        return NextResponse.json({ error: 'Sunucu hatası' }, { status: 500 });
+        return NextResponse.json({
+            error: 'Sipariş güncellenirken bir hata oluştu',
+            details: error instanceof Error ? error.message : 'Bilinmeyen hata'
+        }, { status: 500 });
     }
 }
 

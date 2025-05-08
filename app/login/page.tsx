@@ -42,6 +42,8 @@ export default function Login() {
                     router.push('/restaurant_owner');
                 } else if (session?.user?.role === 'admin') {
                     router.push('/admin');
+                } else if (session?.user?.role === 'courier') {
+                    router.push('/courier');
                 } else {
                     router.push('/');
                 }

@@ -48,7 +48,7 @@ export async function POST(
             );
         }
 
-        if (order.status !== 'pending') {
+        if (order.status !== 'BEKLEMEDE') {
             return NextResponse.json(
                 { error: 'Sadece bekleyen siparişler iptal edilebilir' },
                 { status: 400 }
@@ -57,7 +57,7 @@ export async function POST(
 
         const updatedOrder = await prisma.order.update({
             where: { id: params.id },
-            data: { status: 'cancelled' },
+            data: { status: 'IPTAL_EDILDI' },
         });
 
         return NextResponse.json(updatedOrder);

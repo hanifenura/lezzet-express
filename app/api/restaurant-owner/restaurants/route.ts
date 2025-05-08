@@ -11,19 +11,143 @@ export async function GET() {
             return NextResponse.json({ error: 'Yetkisiz erişim' }, { status: 401 });
         }
 
+        console.log('Kullanıcı ID:', session.user.id);
+
         const restaurants = await prisma.restaurant.findMany({
             where: {
                 ownerId: session.user.id
             },
-            include: {
-                menu: true
+            select: {
+                id: true,
+                name: true,
+                description: true,
+                address: true,
+                phone: true,
+                location: true,
+                categories: true,
+                rating: true,
+                image: true,
+                createdAt: true,
+                menu: {
+                    select: {
+                        id: true,
+                        name: true,
+                        description: true,
+                        price: true,
+                        category: true,
+                        available: true
+                    }
+                },
+                Order: {
+                    select: {
+                        id: true,
+                        status: true,
+                        orderedAt: true,
+                        totalPrice: true,
+                        user: {
+                            select: {
+                                name: true
+                            }
+                        },
+                        items: {
+                            select: {
+                                id: true,
+                                quantity: true,
+                                menu: {
+                                    select: {
+                                        name: true,
+                                        price: true
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    orderBy: {
+                        orderedAt: 'desc'
+                    }
+                }
             }
         });
 
-        return NextResponse.json(restaurants);
+        const updatedRestaurants = await Promise.all(
+            restaurants.map(async (restaurant) => {
+                if (!restaurant.createdAt) {
+                    const updatedRestaurant = await prisma.restaurant.update({
+                        where: { id: restaurant.id },
+                        data: { createdAt: new Date() },
+                        select: {
+                            id: true,
+                            name: true,
+                            description: true,
+                            address: true,
+                            phone: true,
+                            location: true,
+                            categories: true,
+                            rating: true,
+                            image: true,
+                            createdAt: true,
+                            menu: {
+                                select: {
+                                    id: true,
+                                    name: true,
+                                    description: true,
+                                    price: true,
+                                    category: true,
+                                    available: true
+                                }
+                            },
+                            Order: {
+                                select: {
+                                    id: true,
+                                    status: true,
+                                    orderedAt: true,
+                                    totalPrice: true,
+                                    user: {
+                                        select: {
+                                            name: true
+                                        }
+                                    },
+                                    items: {
+                                        select: {
+                                            id: true,
+                                            quantity: true,
+                                            menu: {
+                                                select: {
+                                                    name: true,
+                                                    price: true
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                                orderBy: {
+                                    orderedAt: 'desc'
+                                }
+                            }
+                        }
+                    });
+                    return updatedRestaurant;
+                }
+                return restaurant;
+            })
+        );
+
+        console.log('Bulunan restoran sayısı:', updatedRestaurants.length);
+
+        return NextResponse.json(updatedRestaurants);
     } catch (error) {
-        console.error('Restoranlar getirilirken hata:', error);
-        return NextResponse.json({ error: 'Sunucu hatası' }, { status: 500 });
+        console.error('Restoranlar getirilirken detaylı hata:', {
+            error: error instanceof Error ? error.message : 'Bilinmeyen hata',
+            stack: error instanceof Error ? error.stack : undefined
+        });
+
+        return NextResponse.json(
+            {
+                error: 'Restoranlar getirilirken bir hata oluştu',
+                details: error instanceof Error ? error.message : 'Bilinmeyen hata'
+            },
+            { status: 500 }
+        );
     }
 }
 
