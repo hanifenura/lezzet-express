@@ -21,6 +21,7 @@ export async function middleware(request: NextRequest) {
 
     const isAuthPageRequested = isAuthPage(pathname);
     const isAdminPage = pathname.startsWith("/admin");
+    const isCourierPage = pathname.startsWith("/courier");
 
     // If visiting login/register but already authenticated
     if (isAuthPageRequested) {
@@ -39,6 +40,17 @@ export async function middleware(request: NextRequest) {
         }
 
         if (session.role !== "admin") {
+            return NextResponse.redirect(new URL("/", url));
+        }
+    }
+
+    // If courier route but not logged in or not courier
+    if (isCourierPage) {
+        if (!session) {
+            return NextResponse.redirect(new URL("/login", url));
+        }
+
+        if (session.role !== "courier") {
             return NextResponse.redirect(new URL("/", url));
         }
     }
@@ -68,5 +80,6 @@ export const config = {
         "/panel/:path*",
         "/admin/:path*",
         "/api/admin/:path*",
+        "/courier/:path*",
     ],
 };

@@ -30,7 +30,7 @@ export async function POST(request: Request) {
             );
         }
 
-        const validRoles = ['customer', 'restaurant_owner', 'admin'];
+        const validRoles = ['customer', 'restaurant_owner', 'admin', 'courier'];
         if (!validRoles.includes(role)) {
             return NextResponse.json(
                 { error: 'Geçersiz rol' },

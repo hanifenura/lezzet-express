@@ -152,7 +152,7 @@ export default function ProfilePage() {
                                     <input
                                         type="tel"
                                         name="phone"
-                                        value={profile.phone}
+                                        value={profile.phone || ''}
                                         onChange={handleInputChange}
                                         className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7F0005]"
                                     />
@@ -165,7 +165,7 @@ export default function ProfilePage() {
                                     <input
                                         type="text"
                                         name="address"
-                                        value={profile.address}
+                                        value={profile.address || ''}
                                         onChange={handleInputChange}
                                         className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7F0005]"
                                     />

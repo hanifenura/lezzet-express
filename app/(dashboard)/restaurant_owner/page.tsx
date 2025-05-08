@@ -37,7 +37,7 @@ interface Restaurant {
         category: string;
         available: boolean;
     }[];
-    orders?: {
+    Order?: {
         id: string;
         status: string;
         orderedAt: string;
@@ -65,6 +65,13 @@ interface Restaurant {
     }[];
 }
 
+interface Courier {
+    id: string;
+    name: string;
+    phone: string;
+    status: 'MUSAIT' | 'MESGUL' | 'OFFLINE';
+}
+
 export default function RestaurantOwnerSPA() {
     const { data: session, status } = useSession();
     const router = useRouter();
@@ -73,9 +80,16 @@ export default function RestaurantOwnerSPA() {
     const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [couriers, setCouriers] = useState<Courier[]>([]);
+    const [selectedCourier, setSelectedCourier] = useState<string | null>(null);
+    const [showCourierModal, setShowCourierModal] = useState(false);
+    const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
 
     useEffect(() => {
-        if (session?.user) fetchRestaurants();
+        if (session?.user) {
+            fetchRestaurants();
+            fetchCouriers();
+        }
     }, [session]);
 
     useEffect(() => {
@@ -97,9 +111,56 @@ export default function RestaurantOwnerSPA() {
         }
     };
 
+    const fetchCouriers = async () => {
+        try {
+            const res = await fetch('/api/restaurant-owner/couriers');
+            if (!res.ok) throw new Error('Kuryeler getirilemedi');
+            const data = await res.json();
+            setCouriers(data);
+        } catch (err) {
+            console.error('Kuryeler getirilirken hata:', err);
+        }
+    };
+
     const handleLogout = async () => {
         await fetch('/api/auth/signout', { method: 'POST' });
         router.push('/');
+    };
+
+    const handleAssignCourier = async (orderId: string) => {
+        if (!selectedCourier) return;
+
+        try {
+            console.log('Kurye atama isteği gönderiliyor:', { orderId, courierId: selectedCourier });
+
+            const res = await fetch('/api/restaurant-owner/orders', {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    orderId,
+                    courierId: selectedCourier
+                }),
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                console.error('API yanıtı:', data);
+                throw new Error(data.error || data.details || 'Kurye atanamadı');
+            }
+
+            console.log('Kurye atama başarılı:', data);
+
+            await fetchRestaurants();
+            setShowCourierModal(false);
+            setSelectedCourier(null);
+            setSelectedOrderId(null);
+        } catch (error) {
+            console.error('Kurye atanırken hata:', error);
+            alert(error instanceof Error ? error.message : 'Kurye atanırken bir hata oluştu');
+        }
     };
 
     const sidebarItems: { view: ViewType; icon: React.ReactNode; label: string }[] = [
@@ -133,7 +194,7 @@ export default function RestaurantOwnerSPA() {
                         <p className="text-3xl font-bold">
                             {restaurants.reduce(
                                 (acc, restaurant) =>
-                                    acc + (restaurant.orders?.filter((order) => order.status === "PENDING").length || 0),
+                                    acc + (restaurant.Order?.filter((order) => order.status === "BEKLEMEDE").length || 0),
                                 0
                             )}
                         </p>
@@ -493,6 +554,52 @@ export default function RestaurantOwnerSPA() {
             </div>
         );
 
+        const renderCourierModal = () => {
+            if (!showCourierModal) return null;
+
+            return (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white p-6 rounded-lg w-96">
+                        <h3 className="text-lg font-semibold mb-4">Kurye Seç</h3>
+                        <div className="space-y-2">
+                            {couriers
+                                .filter(courier => courier.status === 'MUSAIT')
+                                .map(courier => (
+                                    <div
+                                        key={courier.id}
+                                        className={`p-2 border rounded cursor-pointer ${selectedCourier === courier.id ? 'border-[#7F0005] bg-red-50' : ''
+                                            }`}
+                                        onClick={() => setSelectedCourier(courier.id)}
+                                    >
+                                        <p className="font-medium">{courier.name}</p>
+                                        <p className="text-sm text-gray-500">{courier.phone}</p>
+                                    </div>
+                                ))}
+                        </div>
+                        <div className="mt-4 flex justify-end space-x-2">
+                            <button
+                                onClick={() => {
+                                    setShowCourierModal(false);
+                                    setSelectedCourier(null);
+                                    setSelectedOrderId(null);
+                                }}
+                                className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                            >
+                                İptal
+                            </button>
+                            <button
+                                onClick={() => selectedOrderId && handleAssignCourier(selectedOrderId)}
+                                disabled={!selectedCourier}
+                                className="px-4 py-2 bg-[#7F0005] text-white rounded hover:bg-[#6A0004] disabled:opacity-50"
+                            >
+                                Ata
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
         const renderOrders = () => (
             <div className="space-y-6">
                 <h1 className="text-2xl font-bold">Siparişler</h1>
@@ -500,7 +607,7 @@ export default function RestaurantOwnerSPA() {
                     <div className="p-6">
                         <div className="space-y-4">
                             {restaurants.flatMap((restaurant) =>
-                                (restaurant.orders || [])
+                                (restaurant.Order || [])
                                     .sort((a, b) => new Date(b.orderedAt).getTime() - new Date(a.orderedAt).getTime())
                                     .map((order) => (
                                         <div key={order.id} className="border-b pb-4">
@@ -522,35 +629,50 @@ export default function RestaurantOwnerSPA() {
                                                 <div className="text-right">
                                                     <p className="font-semibold">{order.totalPrice} TL</p>
                                                     <p
-                                                        className={`text-sm ${order.status === "PENDING"
+                                                        className={`text-sm ${order.status === "BEKLEMEDE"
                                                             ? "text-orange-500"
-                                                            : order.status === "COMPLETED"
+                                                            : order.status === "TAMAMLANDI"
                                                                 ? "text-green-500"
-                                                                : "text-red-500"
+                                                                : order.status === "YOLDA"
+                                                                    ? "text-blue-500"
+                                                                    : "text-red-500"
                                                             }`}
                                                     >
-                                                        {order.status === "PENDING"
+                                                        {order.status === "BEKLEMEDE"
                                                             ? "Bekliyor"
-                                                            : order.status === "COMPLETED"
+                                                            : order.status === "TAMAMLANDI"
                                                                 ? "Tamamlandı"
-                                                                : "İptal Edildi"}
+                                                                : order.status === "YOLDA"
+                                                                    ? "Yolda"
+                                                                    : "İptal Edildi"}
                                                     </p>
-                                                    {order.status === "PENDING" && (
-                                                        <button
-                                                            onClick={async () => {
-                                                                try {
-                                                                    await fetch(`/api/restaurant-owner/orders?id=${order.id}`, {
-                                                                        method: 'DELETE',
-                                                                    });
-                                                                    fetchRestaurants();
-                                                                } catch (error) {
-                                                                    console.error('Sipariş iptal edilirken hata:', error);
-                                                                }
-                                                            }}
-                                                            className="text-red-500 hover:text-red-700 mt-2"
-                                                        >
-                                                            İptal Et
-                                                        </button>
+                                                    {order.status === "BEKLEMEDE" && (
+                                                        <div className="space-y-2 mt-2">
+                                                            <button
+                                                                onClick={() => {
+                                                                    setSelectedOrderId(order.id);
+                                                                    setShowCourierModal(true);
+                                                                }}
+                                                                className="text-blue-500 hover:text-blue-700"
+                                                            >
+                                                                Kurye Ata
+                                                            </button>
+                                                            <button
+                                                                onClick={async () => {
+                                                                    try {
+                                                                        await fetch(`/api/restaurant-owner/orders?id=${order.id}`, {
+                                                                            method: 'DELETE',
+                                                                        });
+                                                                        fetchRestaurants();
+                                                                    } catch (error) {
+                                                                        console.error('Sipariş iptal edilirken hata:', error);
+                                                                    }
+                                                                }}
+                                                                className="text-red-500 hover:text-red-700 block"
+                                                            >
+                                                                İptal Et
+                                                            </button>
+                                                        </div>
                                                     )}
                                                 </div>
                                             </div>
@@ -560,6 +682,7 @@ export default function RestaurantOwnerSPA() {
                         </div>
                     </div>
                 </div>
+                {renderCourierModal()}
             </div>
         );
 
