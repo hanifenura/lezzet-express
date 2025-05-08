@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
     const body = await request.json();
-    const { email, password, name } = body;
+    const { email, password, name, phoneNumber } = body;
 
     // Email ve password zorunlu
     if (!email || !password) {
@@ -24,7 +24,10 @@ export async function POST(request: Request) {
     const hashedPassword = await bcrypt.hash(password, 12);
 
     // Name boşsa "" ata, varsa toLowerCase yap
-    const finalName = name ? name.toLowerCase() : "";
+    const finalName = name ? name : "";
+
+    // Telefon numarası boşsa "" ata
+    const finalPhoneNumber = phoneNumber || "";
 
     // Kullanıcı oluştur
     const user = await prisma.user.create({
@@ -33,9 +36,13 @@ export async function POST(request: Request) {
             name: finalName,
             password: hashedPassword,
             role: "customer",
-            address: ""
+            address: "",
+            phoneNumber: finalPhoneNumber
         },
     });
 
-    return NextResponse.json(user);
+    return NextResponse.json({
+        success: true,
+        message: "Kullanıcı başarıyla oluşturuldu."
+    });
 }

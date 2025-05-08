@@ -11,32 +11,62 @@ export async function GET() {
             return NextResponse.json({ error: 'Yetkisiz erişim' }, { status: 401 });
         }
 
+        // Önce restoran sahibinin tüm restoranlarını bulalım
+        const restaurants = await prisma.restaurant.findMany({
+            where: {
+                ownerId: session.user.id
+            },
+            select: {
+                id: true,
+                name: true,
+                rating: true,
+                image: true,
+            }
+        });
+
+        // Restoran ID'lerini alalım
+        const restaurantIds = restaurants.map(restaurant => restaurant.id);
+
+        // Tüm restoranlar için yorumları toplu olarak çekelim
         const reviews = await prisma.review.findMany({
             where: {
                 restaurantId: {
-                    in: (await prisma.restaurant.findMany({
-                        where: {
-                            ownerId: session.user.id
-                        },
-                        select: {
-                            id: true
-                        }
-                    })).map(restaurant => restaurant.id)
+                    in: restaurantIds
                 }
             },
             include: {
-                user: true,
-                restaurant: true
+                user: {
+                    select: {
+                        name: true
+                    }
+                }
             },
             orderBy: {
                 createdAt: 'desc'
             }
         });
 
-        return NextResponse.json(reviews);
+        // Her restoran için yorumları gruplandıralım
+        const restaurantsWithReviews = restaurants.map(restaurant => {
+            // Bu restorana ait yorumları filtrele
+            const restaurantReviews = reviews.filter(review => review.restaurantId === restaurant.id);
+
+            return {
+                ...restaurant,
+                reviews: restaurantReviews
+            };
+        });
+
+        return NextResponse.json(restaurantsWithReviews);
     } catch (error) {
         console.error('Yorumlar getirilirken hata:', error);
-        return NextResponse.json({ error: 'Sunucu hatası' }, { status: 500 });
+        return NextResponse.json(
+            {
+                error: 'Yorumlar getirilirken bir hata oluştu',
+                details: error instanceof Error ? error.message : 'Bilinmeyen hata'
+            },
+            { status: 500 }
+        );
     }
 }
 

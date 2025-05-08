@@ -1,14 +1,19 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 
 export default function KonumPage() {
+    const router = useRouter();
     const [city, setCity] = useState("");
     const [address, setAddress] = useState("");
     const [cities, setCities] = useState<string[]>([]);
     const [coordinates, setCoordinates] = useState<{ lat: number; lng: number } | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [success, setSuccess] = useState<string | null>(null);
 
     // Şehirleri yükleme (API kullanıyorsan burada fetch edebilirsin)
     useEffect(() => {
@@ -22,21 +27,56 @@ export default function KonumPage() {
             "Yozgat", "Zonguldak"]);
     }, []);
 
-    const handleConfirm = () => {
+    const handleConfirm = async () => {
         if (!address || !city) {
-            alert('Lütfen adres, şehir ve harita bilgilerini doldurun.');
+            setError('Lütfen adres ve şehir bilgilerini doldurun.');
             return;
         }
 
-        // Konum bilgilerini sakla
-        localStorage.setItem('userLocation', JSON.stringify({
-            address: address,
-            city: city,
-            coordinates: coordinates
-        }));
+        setLoading(true);
+        setError(null);
+        setSuccess(null);
 
-        // Restoranlar sayfasına yönlendir
-        window.location.href = '/restaurants'; // Next.js yönlendirmesi
+        try {
+            // Açık adres ve şehir bilgilerini birleştir
+            const fullAddress = `${address}, ${city}`;
+
+            // Adresi kullanıcı profilinde kaydet
+            const response = await fetch('/api/user/profile', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    address: fullAddress
+                }),
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                setSuccess('Adres bilgileriniz başarıyla kaydedildi. Yönlendiriliyorsunuz...');
+
+                // Konum bilgilerini localStorage'a da kaydet (opsiyonel)
+                localStorage.setItem('userLocation', JSON.stringify({
+                    address: address,
+                    city: city,
+                    coordinates: coordinates
+                }));
+
+                // 2 saniye sonra restoranlar sayfasına yönlendir
+                setTimeout(() => {
+                    router.push('/restaurants');
+                }, 2000);
+            } else {
+                setError(data.error || 'Adres kaydedilirken bir hata oluştu.');
+            }
+        } catch (err) {
+            setError('Bir hata oluştu. Lütfen tekrar deneyin.');
+            console.error("Adres kaydetme hatası:", err);
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleMapClick = (lat: number, lng: number) => {
@@ -49,6 +89,18 @@ export default function KonumPage() {
             <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-6">
                 <div className="bg-white rounded-lg w-full max-w-xl p-6 shadow-lg">
                     <h2 className="text-2xl font-bold text-[#7F0005] mb-4 text-center">Konumunuzu Seçin</h2>
+
+                    {error && (
+                        <div className="mb-4 p-3 bg-red-100 text-red-700 rounded">
+                            {error}
+                        </div>
+                    )}
+
+                    {success && (
+                        <div className="mb-4 p-3 bg-green-100 text-green-700 rounded">
+                            {success}
+                        </div>
+                    )}
 
                     {/* Adres Formu */}
                     <div className="mb-4">
@@ -65,6 +117,7 @@ export default function KonumPage() {
                                     className="w-full px-3 py-2 border rounded-lg"
                                     value={city}
                                     onChange={(e) => setCity(e.target.value)}
+                                    disabled={loading}
                                 >
                                     <option value="">Şehir Seçin</option>
                                     {cities.map((c) => (
@@ -82,6 +135,7 @@ export default function KonumPage() {
                                 placeholder="Mahalle, sokak, bina no"
                                 value={address}
                                 onChange={(e) => setAddress(e.target.value)}
+                                disabled={loading}
                             />
                         </div>
                     </div>
@@ -101,15 +155,15 @@ export default function KonumPage() {
                         ></iframe>
                     </div> */}
 
-
                     {/* Buton */}
                     <div className="flex justify-end">
                         <button
                             id="confirmLocation"
-                            className="px-6 py-2 bg-[#7F0005] text-white rounded-lg hover:bg-opacity-90"
+                            className={`px-6 py-2 bg-[#7F0005] text-white rounded-lg hover:bg-opacity-90 transition-all ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
                             onClick={handleConfirm}
+                            disabled={loading}
                         >
-                            Onayla
+                            {loading ? 'Kaydediliyor...' : 'Onayla'}
                         </button>
                     </div>
                 </div>
