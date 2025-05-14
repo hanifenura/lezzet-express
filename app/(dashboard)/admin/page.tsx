@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import AdminHeader from '@/components/AdminHeader';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { Users, UtensilsCrossed, ChefHat } from 'lucide-react';
+import { Users, UtensilsCrossed, ChefHat, MessageSquare } from 'lucide-react';
 
 interface User {
     id: string;
@@ -40,6 +40,26 @@ interface Order {
     createdAt: string;
 }
 
+interface Review {
+    id: string;
+    rating: number;
+    comment: string;
+    createdAt: string;
+    userId: string;
+    restaurantId: string;
+    user: {
+        id: string;
+        name: string;
+        email: string;
+    };
+    restaurant: {
+        id: string;
+        name: string;
+        rating: number;
+    };
+    reportCount: number;
+}
+
 export default function AdminDashboard() {
     const { data: session, status } = useSession();
     const router = useRouter();
@@ -48,9 +68,10 @@ export default function AdminDashboard() {
     const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
     const [editableRestaurants, setEditableRestaurants] = useState<Restaurant[]>([]);
     const [orders, setOrders] = useState<Order[]>([]);
+    const [reviews, setReviews] = useState<Review[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [view, setView] = useState<'users' | 'restaurants' | 'orders'>('users');
+    const [view, setView] = useState<'users' | 'restaurants' | 'orders' | 'reviews'>('users');
 
     useEffect(() => {
         if (status === 'unauthenticated') {
@@ -67,6 +88,7 @@ export default function AdminDashboard() {
             fetchUsers();
             fetchRestaurants();
             fetchOrders();
+            fetchReviews();
         }
     }, [status, session, router]);
 
@@ -117,6 +139,26 @@ export default function AdminDashboard() {
 
             const data = await response.json();
             setOrders(data);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Bir hata oluştu');
+        }
+    };
+
+    const fetchReviews = async () => {
+        try {
+            const response = await fetch('/api/admin/reviews', {
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+            });
+
+            if (!response.ok) throw new Error('Yorumlar yüklenirken hata oluştu');
+
+            const data = await response.json();
+            const reviewsWithReportCount = data.map((review: any) => ({
+                ...review,
+                reportCount: review.reportCount || 0
+            }));
+            setReviews(reviewsWithReportCount);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Bir hata oluştu');
         }
@@ -231,6 +273,46 @@ export default function AdminDashboard() {
             alert('Sipariş başarıyla iptal edildi');
         } catch (err) {
             alert('Sipariş iptal edilirken hata oluştu');
+        }
+    };
+
+    const handleDeleteReview = async (reviewId: string) => {
+        if (!confirm('Bu yorumu silmek istediğinize emin misiniz?')) return;
+
+        try {
+            const res = await fetch(`/api/admin/reviews?id=${reviewId}`, {
+                method: 'DELETE',
+            });
+            if (!res.ok) throw new Error('Silme işlemi başarısız oldu');
+
+            setReviews(prev => prev.filter(r => r.id !== reviewId));
+            alert('Yorum başarıyla silindi');
+        } catch (err) {
+            alert('Yorum silinirken hata oluştu');
+        }
+    };
+
+    // Null reportCount değerlerini düzeltme işlemi
+    const fixReportCounts = async () => {
+        try {
+            const response = await fetch('/api/admin/fix-report-counts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                alert(data.message);
+                // Yorumları yeniden yükle
+                fetchReviews();
+            } else {
+                alert(data.error || 'Bir hata oluştu');
+            }
+        } catch (err) {
+            alert('Veritabanı düzeltme işlemi sırasında bir hata oluştu');
+            console.error('Veritabanı düzeltme hatası:', err);
         }
     };
 
@@ -394,6 +476,78 @@ export default function AdminDashboard() {
         </div>
     );
 
+    const renderReviewManagement = () => (
+        <div>
+            <div className="flex justify-between items-center mb-4">
+                {/* <h1 className="text-3xl font-bold text-[#7F0005] mb-6">Yorum Yönetimi</h1> */}
+                <button
+                    onClick={fixReportCounts}
+                    className="bg-blue-500 hover:bg-blue-700 text-white px-3 py-2 rounded"
+                >
+                    Şikayet Sayılarını Düzelt
+                </button>
+            </div>
+
+            <div className="bg-white rounded-lg shadow overflow-hidden">
+                <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                        <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kullanıcı</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Restoran</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Puan</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Yorum</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Şikayet</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tarih</th>
+                            <th className="px-6 py-3">İşlemler</th>
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                        {reviews.map((review) => (
+                            <tr key={review.id} className={review.reportCount > 0 ? "bg-red-50" : ""}>
+                                <td className="px-6 py-4">{review.user.name || 'İsimsiz'} ({review.user.email})</td>
+                                <td className="px-6 py-4">{review.restaurant.name}</td>
+                                <td className="px-6 py-4">
+                                    <div className="flex items-center">
+                                        {[...Array(5)].map((_, i) => (
+                                            <svg
+                                                key={i}
+                                                className={`w-4 h-4 ${i < review.rating ? 'text-yellow-400' : 'text-gray-300'}`}
+                                                fill="currentColor"
+                                                viewBox="0 0 20 20"
+                                            >
+                                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                            </svg>
+                                        ))}
+                                        <span className="ml-1 text-sm">{review.rating}/5</span>
+                                    </div>
+                                </td>
+                                <td className="px-6 py-4 max-w-xs truncate">{review.comment}</td>
+                                <td className="px-6 py-4">
+                                    {review.reportCount > 0 ? (
+                                        <span className="bg-red-100 text-red-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                                            {review.reportCount} şikayet
+                                        </span>
+                                    ) : (
+                                        <span className="text-gray-400">Şikayet yok</span>
+                                    )}
+                                </td>
+                                <td className="px-6 py-4">{new Date(review.createdAt).toLocaleString()}</td>
+                                <td className="px-6 py-4">
+                                    <button
+                                        onClick={() => handleDeleteReview(review.id)}
+                                        className="bg-[#7F0005] hover:bg-red-700 text-white px-3 py-1 rounded"
+                                    >
+                                        Sil
+                                    </button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+
     if (loading) {
         return <div className="flex items-center justify-center min-h-screen">Yükleniyor...</div>;
     }
@@ -426,6 +580,12 @@ export default function AdminDashboard() {
                     >
                         <ChefHat size={18} /> Siparişler
                     </button>
+                    <button
+                        onClick={() => setView('reviews')}
+                        className={`w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 ${view === 'reviews' ? 'bg-gray-100' : ''}`}
+                    >
+                        <MessageSquare size={18} /> Yorumlar
+                    </button>
                 </nav>
             </div>
 
@@ -433,12 +593,19 @@ export default function AdminDashboard() {
             <main className="flex-1 p-6">
                 <AdminHeader />
                 <h1 className="text-3xl font-bold text-[#7F0005] mb-6">
-                    {view === 'users' ? 'Kullanıcı Yönetimi' : view === 'restaurants' ? 'Restoran Yönetimi' : 'Sipariş Yönetimi'}
+                    {view === 'users'
+                        ? 'Kullanıcı Yönetimi'
+                        : view === 'restaurants'
+                            ? 'Restoran Yönetimi'
+                            : view === 'orders'
+                                ? 'Sipariş Yönetimi'
+                                : 'Yorum Yönetimi'}
                 </h1>
 
                 {view === 'users' && renderUserManagement()}
                 {view === 'restaurants' && renderRestaurantManagement()}
                 {view === 'orders' && renderOrderManagement()}
+                {view === 'reviews' && renderReviewManagement()}
             </main>
         </div>
     );

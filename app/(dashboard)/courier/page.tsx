@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -49,10 +49,17 @@ export default function CourierPanel() {
     const [showCancelModal, setShowCancelModal] = useState(false);
     const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
     const [cancelReason, setCancelReason] = useState('');
+    const [locationPermission, setLocationPermission] = useState<'granted' | 'denied' | 'prompt'>('prompt');
+    const [locationTracking, setLocationTracking] = useState<boolean>(false);
+    const [currentLocation, setCurrentLocation] = useState<{ lat: number, lng: number } | null>(null);
+    const watchPositionRef = useRef<number | null>(null);
+    const locationIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
     useEffect(() => {
         if (session?.user) {
             fetchOrders();
+            // Konum izni kontrolü
+            checkLocationPermission();
         }
     }, [session]);
 
@@ -75,8 +82,135 @@ export default function CourierPanel() {
         }
     };
 
+    const checkLocationPermission = () => {
+        if ('permissions' in navigator) {
+            // @ts-ignore
+            navigator.permissions.query({ name: 'geolocation' })
+                .then(permissionStatus => {
+                    setLocationPermission(permissionStatus.state as 'granted' | 'denied' | 'prompt');
+
+                    permissionStatus.onchange = () => {
+                        setLocationPermission(permissionStatus.state as 'granted' | 'denied' | 'prompt');
+                    };
+                })
+                .catch(error => {
+                    console.error('Konum izni kontrolü hatası:', error);
+                });
+        }
+    };
+
+    const requestLocationPermission = () => {
+        if ('geolocation' in navigator) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    setLocationPermission('granted');
+                    setCurrentLocation({
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude
+                    });
+                },
+                (error) => {
+                    console.error('Konum izni reddedildi:', error);
+                    setLocationPermission('denied');
+                }
+            );
+        } else {
+            alert('Tarayıcınız konum servislerini desteklemiyor.');
+        }
+    };
+
+    const startLocationTracking = (orderId: string) => {
+        if (locationPermission !== 'granted') {
+            requestLocationPermission();
+            return;
+        }
+
+        if (watchPositionRef.current) {
+            // Zaten izleme yapılıyorsa durdur ve yeniden başlat
+            stopLocationTracking();
+        }
+
+        // Konum izleme başlat
+        setLocationTracking(true);
+        setSelectedOrderId(orderId);
+
+        // Konum değişikliklerini izle
+        watchPositionRef.current = navigator.geolocation.watchPosition(
+            (position) => {
+                const newLocation = {
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude
+                };
+                setCurrentLocation(newLocation);
+            },
+            (error) => {
+                console.error('Konum izleme hatası:', error);
+                stopLocationTracking();
+            },
+            {
+                enableHighAccuracy: true,
+                maximumAge: 30000,
+                timeout: 27000
+            }
+        );
+
+        // Konum verilerini sunucuya gönder (15 saniyede bir)
+        locationIntervalRef.current = setInterval(() => {
+            if (currentLocation) {
+                sendLocationToServer(orderId, currentLocation);
+            }
+        }, 15000);
+
+        // İlk konum gönderme
+        if (currentLocation) {
+            sendLocationToServer(orderId, currentLocation);
+        }
+    };
+
+    const stopLocationTracking = () => {
+        if (watchPositionRef.current) {
+            navigator.geolocation.clearWatch(watchPositionRef.current);
+            watchPositionRef.current = null;
+        }
+
+        if (locationIntervalRef.current) {
+            clearInterval(locationIntervalRef.current);
+            locationIntervalRef.current = null;
+        }
+
+        setLocationTracking(false);
+        setSelectedOrderId(null);
+    };
+
+    const sendLocationToServer = async (orderId: string, location: { lat: number, lng: number }) => {
+        try {
+            const response = await fetch('/api/courier/location', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    orderId,
+                    location
+                }),
+            });
+
+            if (!response.ok) {
+                const data = await response.json();
+                console.error('Konum güncellemesi başarısız:', data.error);
+            }
+        } catch (error) {
+            console.error('Konum gönderirken hata:', error);
+        }
+    };
+
     const handleCompleteOrder = async (orderId: string) => {
         try {
+            // Eğer konum izleme aktifse, durdur
+            if (locationTracking && selectedOrderId === orderId) {
+                stopLocationTracking();
+            }
+
             const res = await fetch('/api/courier/orders', {
                 method: 'PATCH',
                 headers: {
@@ -107,6 +241,11 @@ export default function CourierPanel() {
         }
 
         try {
+            // Eğer konum izleme aktifse, durdur
+            if (locationTracking) {
+                stopLocationTracking();
+            }
+
             const res = await fetch('/api/courier/orders', {
                 method: 'PATCH',
                 headers: {
@@ -183,7 +322,7 @@ export default function CourierPanel() {
                 <div className="p-6">
                     <div className="space-y-4">
                         {orders
-                            .filter(order => order.status === 'DELIVERING')
+                            .filter(order => order.status === 'YOLDA')
                             .map((order) => (
                                 <div key={order.id} className="border rounded-lg p-4">
                                     <div className="flex justify-between items-start mb-4">
@@ -223,6 +362,47 @@ export default function CourierPanel() {
                                                         {item.quantity}x {item.menu.name} - {item.menu.price} TL
                                                     </div>
                                                 ))}
+                                            </div>
+                                        </div>
+
+                                        {/* Konum İzleme Butonu */}
+                                        <div className="bg-blue-50 p-3 rounded">
+                                            <h4 className="font-medium mb-2">Konum Takibi</h4>
+                                            <div className="text-sm">
+                                                {locationPermission === 'denied' ? (
+                                                    <p className="text-red-500">
+                                                        Konum izni reddedildi. Konum takibi için lütfen tarayıcı ayarlarınızdan izin verin.
+                                                    </p>
+                                                ) : locationTracking && selectedOrderId === order.id ? (
+                                                    <div>
+                                                        <p className="text-green-600 mb-2">
+                                                            Konumunuz takip ediliyor ve müşteri ile paylaşılıyor.
+                                                        </p>
+                                                        <button
+                                                            onClick={() => stopLocationTracking()}
+                                                            className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm"
+                                                        >
+                                                            Takibi Durdur
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <div>
+                                                        <p className="mb-2">
+                                                            Konum takibini başlatarak müşteriye canlı konum bilgisi sağlayabilirsiniz.
+                                                        </p>
+                                                        <button
+                                                            onClick={() => startLocationTracking(order.id)}
+                                                            className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm"
+                                                        >
+                                                            Konum Takibini Başlat
+                                                        </button>
+                                                    </div>
+                                                )}
+                                                {currentLocation && (
+                                                    <p className="text-xs text-gray-500 mt-2">
+                                                        Mevcut Konum: {currentLocation.lat.toFixed(6)}, {currentLocation.lng.toFixed(6)}
+                                                    </p>
+                                                )}
                                             </div>
                                         </div>
 

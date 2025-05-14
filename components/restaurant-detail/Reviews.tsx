@@ -3,12 +3,14 @@
 import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { Star, StarHalf } from '@phosphor-icons/react';
+import { Flag } from 'lucide-react';
 
 type Review = {
     id: string;
     rating: number;
     comment: string;
     createdAt: string;
+    reportCount: number;
     user: {
         name: string;
     };
@@ -23,6 +25,7 @@ export default function Reviews({ restaurantId }: { restaurantId: string }) {
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [reportingId, setReportingId] = useState<string | null>(null);
 
     // Yorumları yükle
     useEffect(() => {
@@ -33,9 +36,19 @@ export default function Reviews({ restaurantId }: { restaurantId: string }) {
 
                 // API yanıtı doğru formatta mı kontrol et
                 if (data && Array.isArray(data.reviews)) {
-                    setReviews(data.reviews);
+                    // reportCount'u doğru biçimde ayarla
+                    const reviewsWithReportCount = data.reviews.map((review: any) => ({
+                        ...review,
+                        reportCount: review.reportCount || 0
+                    }));
+                    setReviews(reviewsWithReportCount);
                 } else if (Array.isArray(data)) {
-                    setReviews(data);
+                    // reportCount'u doğru biçimde ayarla
+                    const reviewsWithReportCount = data.map((review: any) => ({
+                        ...review,
+                        reportCount: review.reportCount || 0
+                    }));
+                    setReviews(reviewsWithReportCount);
                 } else {
                     console.error('Beklenmeyen API yanıt formatı:', data);
                     setReviews([]);
@@ -95,6 +108,56 @@ export default function Reviews({ restaurantId }: { restaurantId: string }) {
             console.error('Yorum gönderme hatası:', error);
         } finally {
             setIsSubmitting(false);
+        }
+    };
+
+    // Yorumu şikayet et
+    const handleReportReview = async (reviewId: string) => {
+        if (!session) {
+            setError('Şikayet etmek için giriş yapmalısınız');
+            return;
+        }
+
+        try {
+            setReportingId(reviewId);
+            setError(null);
+            setSuccess(null);
+
+            const response = await fetch(`/api/restaurants/${restaurantId}/reviews/report`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    reviewId
+                }),
+            });
+
+            const data = await response.json();
+            console.log('Şikayet yanıtı:', data);
+
+            if (response.ok) {
+                setSuccess('Yorum başarıyla şikayet edildi');
+
+                // API'den dönen güncel reportCount değerini kullan
+                const newReportCount = data.reportCount || 0;
+                console.log(`Yorum ${reviewId} için şikayet sayısı güncelleniyor: ${newReportCount}`);
+
+                setReviews(prevReviews =>
+                    prevReviews.map(review =>
+                        review.id === reviewId
+                            ? { ...review, reportCount: newReportCount }
+                            : review
+                    )
+                );
+            } else {
+                setError(data.error || 'Şikayet işlemi sırasında bir hata oluştu');
+            }
+        } catch (error) {
+            setError('Bir hata oluştu. Lütfen tekrar deneyin.');
+            console.error('Şikayet gönderme hatası:', error);
+        } finally {
+            setReportingId(null);
         }
     };
 
@@ -243,17 +306,31 @@ export default function Reviews({ restaurantId }: { restaurantId: string }) {
                 ) : (
                     reviews.map((review) => (
                         <div key={review.id} className="border-b pb-6">
-                            <div className="flex items-center mb-2">
-                                <div className="flex mr-2">
-                                    {renderStars(review.rating)}
+                            <div className="flex items-center mb-2 justify-between">
+                                <div className="flex items-center">
+                                    <div className="flex mr-2">
+                                        {renderStars(review.rating)}
+                                    </div>
+                                    <span className="text-gray-700 font-medium">
+                                        {review.user?.name || 'Misafir'}
+                                    </span>
+                                    <span className="mx-2 text-gray-400">•</span>
+                                    <span className="text-gray-500 text-sm">
+                                        {formatDate(review.createdAt)}
+                                    </span>
                                 </div>
-                                <span className="text-gray-700 font-medium">
-                                    {review.user?.name || 'Misafir'}
-                                </span>
-                                <span className="mx-2 text-gray-400">•</span>
-                                <span className="text-gray-500 text-sm">
-                                    {formatDate(review.createdAt)}
-                                </span>
+
+                                {session && (
+                                    <button
+                                        onClick={() => handleReportReview(review.id)}
+                                        className="text-gray-500 hover:text-red-500 transition-colors flex items-center gap-1"
+                                        disabled={reportingId === review.id}
+                                        title="Bu yorumu şikayet et"
+                                    >
+                                        <Flag size={16} />
+                                        <span className="text-xs">{reportingId === review.id ? 'İşlem yapılıyor...' : 'Şikayet Et'}</span>
+                                    </button>
+                                )}
                             </div>
                             <p className="text-gray-600">{review.comment}</p>
                         </div>

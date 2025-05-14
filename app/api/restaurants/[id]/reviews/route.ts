@@ -37,6 +37,8 @@ export async function GET(
             },
         });
 
+        console.log('Fetched reviews:', JSON.stringify(reviews.map(r => ({ ...r, reportCount: r.reportCount || 0 }))));
+
         // Yorumlar dizisini döndür
         return NextResponse.json({ reviews });
     } catch (error) {
@@ -111,6 +113,7 @@ export async function POST(
                 comment,
                 userId: user.id,
                 restaurantId: id,
+                reportCount: 0,
             },
             include: {
                 user: {

@@ -208,14 +208,29 @@ export default function OrdersPage() {
                                         </div>
                                     </div>
 
-                                    {order.status.toLowerCase() === 'beklemede' && (
-                                        <button
-                                            onClick={() => handleCancelOrder(order.id)}
-                                            className="mt-4 w-full px-4 py-2 text-[#7F0005] border-2 border-[#7F0005] rounded-4xl hover:bg-[#7F0005] hover:text-white transition-colors duration-300"
-                                        >
-                                            Siparişi İptal Et
-                                        </button>
-                                    )}
+                                    <div className="mt-4 flex space-x-2">
+                                        {order.status.toLowerCase() === 'beklemede' && (
+                                            <button
+                                                onClick={() => handleCancelOrder(order.id)}
+                                                className="w-full px-4 py-2 text-[#7F0005] border-2 border-[#7F0005] rounded-4xl hover:bg-[#7F0005] hover:text-white transition-colors duration-300"
+                                            >
+                                                Siparişi İptal Et
+                                            </button>
+                                        )}
+
+                                        {order.status.toLowerCase() === 'yolda' && (
+                                            <button
+                                                onClick={() => router.push(`/order-tracking?orderId=${order.id}`)}
+                                                className="w-full px-4 py-2 bg-[#7F0005] text-white rounded-4xl hover:bg-opacity-90 transition-colors duration-300 flex items-center justify-center"
+                                            >
+                                                <span className="mr-2">Canlı Konumu Gör</span>
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                                    <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                                                </svg>
+                                            </button>
+                                        )}
+                                    </div>
+
                                 </div>
                             </div>
                         ))}

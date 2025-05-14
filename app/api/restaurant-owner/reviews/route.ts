@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import prisma from '@/app/utils/prisma';
 
-export async function GET() {
+export async function GET(request: Request) {
     try {
         const session = await getServerSession(authOptions);
 
@@ -11,33 +11,43 @@ export async function GET() {
             return NextResponse.json({ error: 'Yetkisiz erişim' }, { status: 401 });
         }
 
-        // Önce restoran sahibinin tüm restoranlarını bulalım
-        const restaurants = await prisma.restaurant.findMany({
-            where: {
-                ownerId: session.user.id
-            },
-            select: {
-                id: true,
-                name: true,
-                rating: true,
-                image: true,
-            }
+        const user = await prisma.user.findUnique({
+            where: { email: session.user.email as string },
         });
 
-        // Restoran ID'lerini alalım
+        if (!user) {
+            return NextResponse.json({ error: 'Kullanıcı bulunamadı' }, { status: 404 });
+        }
+
+        // Restoran sahibinin restoranlarını bul
+        const restaurants = await prisma.restaurant.findMany({
+            where: { ownerId: user.id },
+            select: { id: true }
+        });
+
+        if (restaurants.length === 0) {
+            return NextResponse.json({ message: 'Henüz restoranınız bulunmamaktadır', reviews: [] });
+        }
+
+        // Tüm restoranların ID'lerini al
         const restaurantIds = restaurants.map(restaurant => restaurant.id);
 
-        // Tüm restoranlar için yorumları toplu olarak çekelim
+        // Bu restoranlara ait tüm yorumları getir
         const reviews = await prisma.review.findMany({
             where: {
-                restaurantId: {
-                    in: restaurantIds
-                }
+                restaurantId: { in: restaurantIds }
             },
             include: {
                 user: {
                     select: {
-                        name: true
+                        name: true,
+                        email: true
+                    }
+                },
+                restaurant: {
+                    select: {
+                        name: true,
+                        rating: true
                     }
                 }
             },
@@ -46,25 +56,19 @@ export async function GET() {
             }
         });
 
-        // Her restoran için yorumları gruplandıralım
-        const restaurantsWithReviews = restaurants.map(restaurant => {
-            // Bu restorana ait yorumları filtrele
-            const restaurantReviews = reviews.filter(review => review.restaurantId === restaurant.id);
+        console.log('Restaurant owner reviews:', JSON.stringify(reviews.map(r => ({ id: r.id, reportCount: r.reportCount || 0 }))));
 
-            return {
-                ...restaurant,
-                reviews: restaurantReviews
-            };
-        });
+        // Eksik reportCount değerlerini 0 olarak ayarla
+        const reviewsWithReportCount = reviews.map(review => ({
+            ...review,
+            reportCount: review.reportCount || 0
+        }));
 
-        return NextResponse.json(restaurantsWithReviews);
+        return NextResponse.json(reviewsWithReportCount);
     } catch (error) {
         console.error('Yorumlar getirilirken hata:', error);
         return NextResponse.json(
-            {
-                error: 'Yorumlar getirilirken bir hata oluştu',
-                details: error instanceof Error ? error.message : 'Bilinmeyen hata'
-            },
+            { error: 'Yorumlar getirilirken bir hata oluştu' },
             { status: 500 }
         );
     }
