@@ -14,6 +14,7 @@ import {
     LogOutIcon,
     UtensilsCrossed,
     Star,
+    Flag,
 } from 'lucide-react';
 
 
@@ -58,8 +59,13 @@ interface Restaurant {
         id: string;
         rating: number;
         comment: string;
+        reportCount: number;
         createdAt: string;
         user: {
+            name: string | null;
+            email: string;
+        };
+        restaurant: {
             name: string;
         };
     }[];
@@ -70,6 +76,21 @@ interface Courier {
     name: string;
     phone: string;
     status: 'MUSAIT' | 'MESGUL' | 'OFFLINE';
+}
+
+interface Review {
+    id: string;
+    rating: number;
+    comment: string;
+    reportCount: number;
+    createdAt: string;
+    user: {
+        name: string | null;
+        email: string;
+    };
+    restaurant: {
+        name: string;
+    };
 }
 
 export default function RestaurantOwnerSPA() {
@@ -84,11 +105,13 @@ export default function RestaurantOwnerSPA() {
     const [selectedCourier, setSelectedCourier] = useState<string | null>(null);
     const [showCourierModal, setShowCourierModal] = useState(false);
     const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+    const [reviews, setReviews] = useState<Review[]>([]);
 
     useEffect(() => {
         if (session?.user) {
             fetchRestaurants();
             fetchCouriers();
+            fetchReviews();
         }
     }, [session]);
 
@@ -119,6 +142,28 @@ export default function RestaurantOwnerSPA() {
             setCouriers(data);
         } catch (err) {
             console.error('Kuryeler getirilirken hata:', err);
+        }
+    };
+
+    const fetchReviews = async () => {
+        try {
+            setLoading(true);
+            const res = await fetch('/api/restaurant-owner/reviews');
+            if (!res.ok) {
+                throw new Error('Yorumlar yüklenirken bir hata oluştu');
+            }
+            const data = await res.json();
+            const reviewsWithReportCount = data.map((review: any) => ({
+                ...review,
+                reportCount: review.reportCount || 0
+            }));
+            setReviews(reviewsWithReportCount);
+            console.log('Reviews loaded with reportCount:', reviewsWithReportCount);
+        } catch (error) {
+            setError('Yorumlar yüklenirken bir hata oluştu');
+            console.error('Yorumlar yüklenirken hata:', error);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -687,46 +732,49 @@ export default function RestaurantOwnerSPA() {
         );
 
         const renderReviews = () => (
-            <div className="space-y-6">
-                <h1 className="text-2xl font-bold">Yorumlar</h1>
-                <div className="bg-white rounded-lg shadow">
-                    <div className="p-6">
-                        <div className="space-y-4">
-                            {restaurants.map((restaurant) => (
-                                <div key={restaurant.id} className="border-b pb-4">
-                                    <h3 className="text-lg font-medium mb-2">{restaurant.name}</h3>
-                                    <div className="space-y-2">
-                                        {restaurant.reviews?.map((review) => (
-                                            <div key={review.id} className="border rounded-lg p-4">
-                                                <div className="flex items-center justify-between">
-                                                    <div className="flex items-center">
-                                                        <div className="flex items-center">
-                                                            {[...Array(5)].map((_, i) => (
-                                                                <svg
-                                                                    key={i}
-                                                                    className={`w-4 h-4 ${i < review.rating ? 'text-yellow-400' : 'text-gray-300'
-                                                                        }`}
-                                                                    fill="currentColor"
-                                                                    viewBox="0 0 20 20"
-                                                                >
-                                                                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                                                                </svg>
-                                                            ))}
-                                                        </div>
-                                                        <span className="ml-2 text-sm text-gray-500">{review.user.name}</span>
-                                                    </div>
-                                                    <span className="text-sm text-gray-500">
-                                                        {new Date(review.createdAt).toLocaleDateString("tr-TR")}
-                                                    </span>
-                                                </div>
-                                                <p className="mt-2 text-gray-600">{review.comment}</p>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            ))}
+            <div className="bg-white rounded-lg shadow-md overflow-hidden">
+                <div className="p-4 bg-gray-50 border-b">
+                    <h2 className="text-xl font-semibold text-[#7F0005]">Restoran Yorumları</h2>
+                </div>
+                <div className="divide-y divide-gray-200">
+                    {reviews.length === 0 ? (
+                        <div className="p-6 text-center text-gray-500">
+                            Henüz yorum bulunmamaktadır.
                         </div>
-                    </div>
+                    ) : (
+                        reviews.map((review) => (
+                            <div key={review.id} className="p-4 hover:bg-gray-50">
+                                <div className="flex justify-between items-start mb-2">
+                                    <div>
+                                        <div className="flex items-center mb-1">
+                                            <div className="flex">
+                                                {Array.from({ length: 5 }).map((_, index) => (
+                                                    <Star
+                                                        key={index}
+                                                        className={index < review.rating ? 'text-yellow-400' : 'text-gray-300'}
+                                                        size={18}
+                                                    />
+                                                ))}
+                                            </div>
+                                            <span className="ml-2 text-gray-700 font-medium">
+                                                {review.user?.name || 'Misafir'} ({review.user.email})
+                                            </span>
+                                        </div>
+                                        <p className="text-sm text-gray-500">
+                                            {new Date(review.createdAt).toLocaleDateString('tr-TR')} - {review.restaurant.name}
+                                        </p>
+                                    </div>
+                                    {review.reportCount > 0 && (
+                                        <span className="bg-red-100 text-red-800 text-xs font-medium px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                                            <Flag size={12} />
+                                            {review.reportCount} şikayet
+                                        </span>
+                                    )}
+                                </div>
+                                <p className="text-gray-600">{review.comment}</p>
+                            </div>
+                        ))
+                    )}
                 </div>
             </div>
         );
